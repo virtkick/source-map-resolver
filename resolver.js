@@ -126,4 +126,4 @@ function resolveStackTrace(sourceMapLocation, errorStack) {
 }
 
 module.exports = resolveStackTrace;
-module.exports = resolveStackTraceNode;
+module.exports.node = resolveStackTraceNode;
