@@ -7,6 +7,7 @@ let fs = Promise.promisifyAll(require('fs'));
 let sourceMappingURL = require("source-map-url");
 let sourceMapCache = {};
 let ErrorStackParser = require('error-stack-parser');
+let path = require('path');
 
 function readSourceMap(mapFile) {
   sourceMapCache[mapFile] = sourceMapCache[mapFile] || fs.readFileAsync(mapFile, 'utf8').then(JSON.parse).then(contents => {
@@ -59,6 +60,46 @@ function resolveSourceMap(position, sourceMap) {
   }
 }
 
+function resolveStackTraceNode(sourceMapLocation, errorStack) {
+  let sourceMapBase = path.parse(sourceMapLocation).base;
+  
+  let belongsToSourceMap = line => {
+    let m;
+    if((m = line.match(/(?:at |\()(\/.*\.js)/))) {
+      let parsed = path.parse(m[1]);
+      if(parsed.base + '.map' === sourceMapBase) {
+        return true;
+      }
+    }
+  };
+  
+  return readSourceMap(sourceMapLocation).then(smc => {
+    return errorStack.split(/\n/).map(line => {
+      if(!belongsToSourceMap(line)) {
+        return line;
+      }
+      let replacedLine = line.replace(/at (.*?) \((.*?):(\d+):(\d+)\)/, (m, symbol, file, line, column) => {
+        let resolvedPosition = resolveSourceMap({
+          line: parseInt(line),
+          column: parseInt(column)
+        }, smc);
+        return `at ${resolvedPosition.name} (${resolvedPosition.source}:${resolvedPosition.line}:${resolvedPosition.column})`;
+      });
+      if(replacedLine != line) {
+        return replacedLine;
+      }
+      
+      return line.replace(/at (.*?):(\d+):(\d+)/, (m, file, line, column) => {
+        let resolvedPosition = resolveSourceMap({
+          line: parseInt(line),
+          column: parseInt(column)
+        }, smc);
+        return `at ${resolvedPosition.source}:${resolvedPosition.line}:${resolvedPosition.column}`;
+      });
+    }).join('\n');
+  });
+}
+
 function resolveStackTrace(sourceMapLocation, errorStack) {
   return readSourceMap(sourceMapLocation).then(smc => {
     return ErrorStackParser.parse({stack: errorStack}).map(sf => {
@@ -82,6 +123,7 @@ function resolveStackTrace(sourceMapLocation, errorStack) {
       return sf.toString();
     }).join('\n');
   });
-};
+}
 
 module.exports = resolveStackTrace;
+module.exports = resolveStackTraceNode;
