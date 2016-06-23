@@ -83,6 +83,7 @@ function resolveStackTraceNode(sourceMapLocation, errorStack) {
           line: parseInt(line),
           column: parseInt(column)
         }, smc);
+        if(!resolvedPosition) { return `at ${symbol} (${file}:${line}:${column})`; }
         return `at ${resolvedPosition.name} (${resolvedPosition.source}:${resolvedPosition.line}:${resolvedPosition.column})`;
       });
       if(replacedLine != line) {
@@ -94,6 +95,7 @@ function resolveStackTraceNode(sourceMapLocation, errorStack) {
           line: parseInt(line),
           column: parseInt(column)
         }, smc);
+        if(!resolvedPosition) { return `at ${file}:${line}:${column}`; }
         return `at ${resolvedPosition.source}:${resolvedPosition.line}:${resolvedPosition.column}`;
       });
     }).join('\n');
